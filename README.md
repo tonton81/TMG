@@ -7,6 +7,14 @@ Installation:
 1) download to /data/ folder (/data/TMG/)
 2) run ```python /data/TMG/install.py```
 
+The source of patched openpilot files must contain these 4 lines at top before setting up a key
+```
+import sys
+sys.path.append("/data/TMG/")
+from TMGClass import TMGClass
+TMGClass = TMGClass()
+```
+
 The GUI will not have any entries unless you add them in openpilot files, or patches are made. Example, we edit OP to register as example:
 ```ret.lateralTuning.lqr.scale = TMGClass.get("lqr_scale", ret.lateralTuning.lqr.scale)```
 This will register the variable in params, so a reboot it required (reboot 1), a second reboot is needed after so it appears in the GUI.
