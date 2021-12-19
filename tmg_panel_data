@@ -1,0 +1,393 @@
+std::string request_bash(std::string data) {
+  std::string command = data + " > /data/TMG/qtguitmp.txt";
+  std::system(command.c_str());
+  std::string _str;
+  std::ostringstream _ostr;
+  _ostr << std::ifstream("/data/TMG/qtguitmp.txt").rdbuf();
+  std::system("rm /data/TMG/qtguitmp.txt");
+  _str = _ostr.str();
+  return _str;
+}
+
+void getKeys(std::vector<std::string> &arr) {
+  std::string command = "bash /data/TMG/bashHelper.sh GETKEYS > /data/TMG/qtguitmp.txt";
+  std::system(command.c_str());
+  std::string _str;
+  std::ostringstream _ostr;
+  _ostr << std::ifstream("/data/TMG/qtguitmp.txt").rdbuf();
+  std::system("rm /data/TMG/qtguitmp.txt");
+  _str = _ostr.str();
+  std::istringstream input(_str);
+  std::string f;
+  while (input >> f)
+    arr.push_back(f);
+}
+
+std::string getKey(std::string key, std::vector<double> &arr) {
+  std::string command = "bash /data/TMG/bashHelper.sh READCPKEY " + key + " > /data/TMG/qtguitmp.txt";
+  std::system(command.c_str());
+  std::string _str;
+  std::ostringstream _ostr;
+  _ostr << std::ifstream("/data/TMG/qtguitmp.txt").rdbuf();
+  std::system("rm /data/TMG/qtguitmp.txt");
+  _str = _ostr.str();
+  std::istringstream input(_str);
+  double f;
+  while (input >> f)
+    arr.push_back(f);
+  return _str;
+}
+
+void putKey(std::string key, std::vector<double> &arr) {
+  std::string build = "[";
+  for ( int i = 0; i < arr.size(); i++ ) {
+    if ( i == (arr.size() - 1) ) {
+      build.append(std::to_string(arr[i])).append("]");
+      break;
+    }
+    build.append(std::to_string(arr[i])).append(", ");
+  }
+  std::string command = "echo " + build + " > /data/params/d/" + key;
+  std::system(command.c_str());
+}
+
+QWidget * TMG_panel(QWidget * parent) {
+  QWidget *w = new QWidget(parent);
+  QVBoxLayout *layout = new QVBoxLayout(w);
+  layout->setContentsMargins(50, 0, 50, 0);
+
+  ListWidget *list = new ListWidget();
+  list->setSpacing(20);
+
+  QHBoxLayout *adjustment_current = new QHBoxLayout();
+  LabelControl *adjustment_current_label_full = new LabelControl("Current -->");
+  LabelControl *adjustment_current_label_full_default = new LabelControl("Default -->");
+
+  QHBoxLayout *tuning_selection = new QHBoxLayout();
+  QComboBox *tuning_combobox = new QComboBox(w);
+
+  QHBoxLayout *percent_selection = new QHBoxLayout();
+  QComboBox *percent_combobox = new QComboBox(w);
+
+  QPushButton *incBtn = new QPushButton("+");
+  QPushButton *decBtn = new QPushButton("-");
+
+  ParamControl * opDynamic = new ParamControl("", "Dynamic update", "", "", w);
+
+
+  QComboBox *indice_combobox = new QComboBox(w);
+
+  QHBoxLayout *tmg_buttons = new QHBoxLayout();
+  QPushButton *editBtn = new QPushButton("Edit");
+  QPushButton *defaultBtn = new QPushButton("Default");
+  editBtn->setStyleSheet(R"(
+    QPushButton {
+      font-size: 50px;
+      padding-bottom: 20px;
+      font-weight: bold;
+      border 1px grey solid;
+      border-radius: 20px;
+      background-color: black;
+      font-weight: 400;
+    }
+    QPushButton:pressed {
+      background-color: #3B3B3B;
+    }
+  )");
+  defaultBtn->setStyleSheet(R"(
+    QPushButton {
+      font-size: 50px;
+      padding-bottom: 20px;
+      font-weight: bold;
+      border 1px grey solid;
+      border-radius: 20px;
+      background-color: black;
+      font-weight: 400;
+    }
+    QPushButton:pressed {
+      background-color: #3B3B3B;
+    }
+  )");
+
+  tmg_buttons->addWidget(editBtn);
+  tmg_buttons->addWidget(defaultBtn);
+
+  /* Show current WiFi IP address */
+  LabelControl *my_ip = new LabelControl("WiFi IP Address");
+  list->addItem(my_ip);
+  my_ip->setText(QString::fromStdString(request_bash("ip route get 8.8.8.8 | head -1 | cut -d' ' -f8")).trimmed());
+
+  /* TUNING COMBOBOX CONFIGURATION */
+
+  std::vector<std::string> combobox_list;
+  tuning_combobox->clear();
+  getKeys(combobox_list);
+  for ( int i = 0; i < combobox_list.size(); i++ ) tuning_combobox->addItem(QString::fromStdString(combobox_list[i]).trimmed());
+  tuning_combobox->setCurrentIndex(-1);
+  editBtn->setVisible(false);
+  defaultBtn->setVisible(false);
+  adjustment_current_label_full->setVisible(false);
+  adjustment_current_label_full_default->setVisible(false);
+  incBtn->setVisible(false);
+  decBtn->setVisible(false);
+  percent_combobox->setVisible(false);
+  indice_combobox->setVisible(false);
+  opDynamic->setVisible(false);
+
+  QObject::connect(tuning_combobox, QOverload<int>::of(&QComboBox::currentIndexChanged), [=](int index){
+    if ( index == -1 ) return;
+    editBtn->setVisible(true);
+    defaultBtn->setVisible(true);
+    adjustment_current_label_full->setVisible(true);
+    adjustment_current_label_full_default->setVisible(true);
+    incBtn->setVisible(true);
+    decBtn->setVisible(true);
+    percent_combobox->setVisible(true);
+
+    std::string item = tuning_combobox->currentText().toStdString();
+    adjustment_current_label_full->setText(QString::fromStdString(Params().get(item.c_str())).trimmed());
+    std::string default_text = item + "_default";
+    std::string dynamic_text = item + "_dynamic";
+    adjustment_current_label_full_default->setText(QString::fromStdString(Params().get(default_text.c_str())).trimmed());
+
+    std::vector<double> result;
+    (void)getKey(item, result);
+    if ( result.size() > 1 ) {
+      indice_combobox->clear();
+      std::string entry;
+      for ( int i = 0; i < result.size(); i++ ) {
+        entry = "Current value indice " + std::to_string(i) + ": " + std::to_string(result[i]);
+        indice_combobox->addItem(QString::fromStdString(entry).trimmed());
+      }
+      indice_combobox->setVisible(true);
+    }
+    else {
+      indice_combobox->setVisible(false);
+    }
+
+    std::ifstream infile("/data/params/d/" + default_text); /* check if default key exists, if not, disable default buttons/views */
+    if ( infile.good() ) {
+      adjustment_current_label_full_default->setVisible(true);
+      defaultBtn->setVisible(true);
+    }
+    else {
+      adjustment_current_label_full_default->setVisible(false);
+      defaultBtn->setVisible(false);
+    }
+
+    std::ifstream infile2("/data/params/d/" + dynamic_text); /* check if key has dynamic capability */
+    if ( infile2.good() ) {
+      opDynamic->changeKey(QString::fromStdString(dynamic_text).trimmed());
+      opDynamic->setVisible(true);
+    }
+    else {
+      opDynamic->setVisible(false);
+    }
+  });
+
+
+  // REFRESHES PAGE ITEMS
+  QPushButton *tuning_label = new QPushButton("Tuning Options:");
+  QObject::connect(tuning_label, &QPushButton::clicked, [=]() {
+    /* REFRESHES TUNING KEYS */
+    std::vector<std::string> combobox_list;
+    tuning_combobox->clear();
+    getKeys(combobox_list);
+    for ( int i = 0; i < combobox_list.size(); i++ ) tuning_combobox->addItem(QString::fromStdString(combobox_list[i]).trimmed());
+    /* REFRESHES WIFI IP ADDRESS */
+    my_ip->setText(QString::fromStdString(request_bash("ip route get 8.8.8.8 | head -1 | cut -d' ' -f8")).trimmed());
+  });
+
+
+  tuning_selection->addWidget(tuning_label);
+  tuning_selection->addWidget(tuning_combobox);
+  list->addItem(tuning_selection);
+
+// PERCENTAGE ADJUSTMENT
+  percent_combobox->setFixedWidth(200);
+  percent_combobox->addItems({"1 %", "2 %", "3 %", "4 %", "5 %", "6 %", "7 %", "8 %", "9 %", "10 %", "11 %", "12 %", "13 %", "14 %", "15 %",
+                              "0.1", "0.01", "0.001"});
+  percent_combobox->setCurrentIndex(2);
+  for (int i = 0; i < percent_combobox->count(); ++i) percent_combobox->setItemData(i, Qt::AlignCenter, Qt::TextAlignmentRole);
+  incBtn->setStyleSheet(R"(
+    QPushButton {
+      font-size: 100px;
+      padding-bottom: 20px;
+      font-weight: bold;
+      border 1px grey solid;
+      border-radius: 20px;
+      background-color: black;
+      font-weight: 400;
+    }
+    QPushButton:pressed {
+      background-color: #3B3B3B;
+    }
+  )");
+  decBtn->setStyleSheet(R"(
+    QPushButton {
+      font-size: 100px;
+      padding-bottom: 20px;
+      font-weight: bold;
+      border 1px grey solid;
+      border-radius: 20px;
+      background-color: black;
+      font-weight: 400;
+    }
+    QPushButton:pressed {
+      background-color: #3B3B3B;
+    }
+  )");
+
+
+  QObject::connect(incBtn, &QPushButton::clicked, [=]() {
+    std::string item = tuning_combobox->currentText().toStdString();
+    std::vector<double> result;
+    (void)getKey(item, result);
+    int index = indice_combobox->currentIndex();
+
+    if ( result.size() > 1 ) {
+      if ( QString::fromStdString(percent_combobox->currentText().toStdString()).contains("%") ) {
+        result[indice_combobox->currentIndex()] = result[indice_combobox->currentIndex()] + (result[indice_combobox->currentIndex()] * ((double)(percent_combobox->currentIndex() + 1) / 100.0f));
+      }
+      else {
+        std::string value = percent_combobox->currentText().toStdString();
+        result[indice_combobox->currentIndex()] = result[indice_combobox->currentIndex()] + strtod(value.c_str(), NULL);
+      }
+      indice_combobox->clear();
+      std::string entry;
+      for ( int i = 0; i < result.size(); i++ ) {
+        entry = "Current value indice " + std::to_string(i) + ": " + std::to_string(result[i]);
+        indice_combobox->addItem(QString::fromStdString(entry).trimmed());
+      }
+    }
+    else {
+      if ( QString::fromStdString(percent_combobox->currentText().toStdString()).contains("%") ) {
+        result[0] = result[0] + (result[0] * ((double)(percent_combobox->currentIndex() + 1) / 100.0f));
+      }
+      else {
+        std::string value = percent_combobox->currentText().toStdString();
+        result[0] = result[0] + strtod(value.c_str(), NULL);
+      }
+    }
+    putKey (item, result);
+    indice_combobox->setCurrentIndex(index);
+
+    adjustment_current_label_full->setText(QString::fromStdString(Params().get(item.c_str())).trimmed());
+    std::string default_text = item + "_default";
+    adjustment_current_label_full_default->setText(QString::fromStdString(Params().get(default_text.c_str())).trimmed());
+  });
+
+
+  QObject::connect(decBtn, &QPushButton::clicked, [=]() {
+    std::string item = tuning_combobox->currentText().toStdString();
+    std::vector<double> result;
+    (void)getKey(item, result);
+    int index = indice_combobox->currentIndex();
+
+    if ( result.size() > 1 ) {
+      if ( QString::fromStdString(percent_combobox->currentText().toStdString()).contains("%") ) {
+        result[indice_combobox->currentIndex()] = result[indice_combobox->currentIndex()] - (result[indice_combobox->currentIndex()] * ((double)(percent_combobox->currentIndex() + 1) / 100.0f));
+      }
+      else {
+        std::string value = percent_combobox->currentText().toStdString();
+        result[indice_combobox->currentIndex()] = result[indice_combobox->currentIndex()] - strtod(value.c_str(), NULL);
+      }
+      indice_combobox->clear();
+      std::string entry;
+      for ( int i = 0; i < result.size(); i++ ) {
+        entry = "Current value indice " + std::to_string(i) + ": " + std::to_string(result[i]);
+        indice_combobox->addItem(QString::fromStdString(entry).trimmed());
+      }
+    }
+    else {
+      if ( QString::fromStdString(percent_combobox->currentText().toStdString()).contains("%") ) {
+        result[0] = result[0] - (result[0] * ((double)(percent_combobox->currentIndex() + 1) / 100.0f));
+      }
+      else {
+        std::string value = percent_combobox->currentText().toStdString();
+        result[0] = result[0] - strtod(value.c_str(), NULL);
+      }
+    }
+    putKey (item, result);
+    indice_combobox->setCurrentIndex(index);
+
+    adjustment_current_label_full->setText(QString::fromStdString(Params().get(item.c_str())).trimmed());
+    std::string default_text = item + "_default";
+    adjustment_current_label_full_default->setText(QString::fromStdString(Params().get(default_text.c_str())).trimmed());
+  });
+
+
+  QObject::connect(editBtn, &QPushButton::clicked, [=]() {
+    bool ok = 0;
+    double d = QInputDialog::getDouble(0, ("QInputDialog::getDouble()"), ("Amount:"), 1.0, -10000, 10000, 8, &ok);
+    (void)d;
+  });
+
+
+  QObject::connect(defaultBtn, &QPushButton::clicked, [=]() {
+    if (QMessageBox::No == QMessageBox(QMessageBox::Information, "", "Are you sure you want to restore defaults?", QMessageBox::Yes|QMessageBox::No).exec()) return;
+
+    std::string item = tuning_combobox->currentText().toStdString();
+    std::string default_text = item + "_default";
+    Params().put(item, Params().get(default_text.c_str()));
+    adjustment_current_label_full->setText(QString::fromStdString(Params().get(item.c_str())).trimmed());
+    adjustment_current_label_full_default->setText(QString::fromStdString(Params().get(default_text.c_str())).trimmed());
+
+    std::vector<double> result;
+    (void)getKey(item, result);
+    int index = indice_combobox->currentIndex();
+
+    if ( result.size() > 1 ) {
+      indice_combobox->clear();
+      std::string entry;
+      for ( int i = 0; i < result.size(); i++ ) {
+        entry = "Current value indice " + std::to_string(i) + ": " + std::to_string(result[i]);
+        indice_combobox->addItem(QString::fromStdString(entry).trimmed());
+      }
+    }
+    indice_combobox->setCurrentIndex(index);
+  });
+
+  percent_selection->addWidget(incBtn);
+  percent_selection->addWidget(percent_combobox);
+  percent_selection->addWidget(decBtn);
+  list->addItem(percent_selection);
+
+// EDIT/RESULT
+  adjustment_current->addWidget(indice_combobox);
+  list->addItem(adjustment_current);
+  list->addItem(tmg_buttons);
+  list->addItem(adjustment_current_label_full);
+  list->addItem(adjustment_current_label_full_default);
+  list->addItem(opDynamic);
+
+  QHBoxLayout *androidline1 = new QHBoxLayout();
+
+  ButtonControl *android_settings = new ButtonControl("Android Settings", "Open", "");
+  AbstractControl::connect(android_settings, &ButtonControl::clicked, [=]() {
+    (void)request_bash("am start -a android.settings.SETTINGS");
+    QTimer::singleShot(30000, [=]() {
+      (void)request_bash("pkill com.android.settings");
+    });
+  });
+  androidline1->addWidget(android_settings);
+
+  QHBoxLayout *devline1 = new QHBoxLayout();
+
+  LabelControl *dev_lsusb = new LabelControl("lsusb", "", "...");
+  dev_lsusb->setText("");
+  dev_lsusb->setDescription("");
+  AbstractControl::connect(dev_lsusb, &LabelControl::showDescription, [=]() {
+    QString desc = QString::fromStdString(request_bash("lsusb"));
+    dev_lsusb->setDescription(desc);
+  });
+  devline1->addWidget(dev_lsusb);
+
+  list->addItem(devline1);
+  list->addItem(androidline1);
+
+  layout->addWidget(list);
+  layout->addStretch(1);
+  return w;
+}
+

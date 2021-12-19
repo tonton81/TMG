@@ -1,0 +1,49 @@
+import sys
+import shutil
+
+
+found = False
+
+with open("/data/openpilot/selfdrive/ui/qt/offroad/settings.cc",'r') as r: # READ CURRENT FILE
+    data = r.readlines()
+    for line in data:
+        if "QWidget * TMG_panel" in line:
+            found = True
+            break
+
+if found != True:
+    with open("/data/openpilot/selfdrive/ui/qt/offroad/settings.tmp",'w') as n: # WRITE TO TEMPORARY FILE
+        with open("/data/openpilot/selfdrive/ui/qt/offroad/settings.cc",'r') as f: # READ CURRENT FILE
+            data = f.readlines()
+            for line in data:
+                if "TogglesPanel::TogglesPanel" in line:
+                    n.writelines("#include <QComboBox>\n")
+                    n.writelines("#include <QMessageBox>\n")
+                    n.writelines("#include <QInputDialog>\n")
+                    n.writelines("#include <cstdlib>\n")
+                    n.writelines("#include <fstream>\n")
+                    n.writelines("#include <iostream>\n")
+                    n.writelines("#include <vector>\n\n")
+
+                if "QWidget * network_panel" in line:
+                    with open("/data/TMG/tmg_panel_data",'r') as p:
+                        panel = p.readlines()
+                        n.writelines(panel)
+                        n.writelines("\n")
+
+                if "{\"Network\", network_panel" in line:
+                    n.writelines("    {\"TMG\", TMG_panel(this)},\n")
+
+                if "const int padding = panels.size" in line:
+                    n.writelines(line.replace("25", "15"))
+                    continue
+
+                n.writelines(line)
+        n.flush()
+    shutil.move("/data/openpilot/selfdrive/ui/qt/offroad/settings.tmp", "/data/openpilot/selfdrive/ui/qt/offroad/settings.cc")
+
+if found == True:
+    print("Already patched settings.cc")
+else:
+    print("Patched settings.cc Successfully")
+
