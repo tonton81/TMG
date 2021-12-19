@@ -1,0 +1,38 @@
+import sys
+import shutil
+
+
+found = False
+
+with open("/data/openpilot/selfdrive/ui/qt/widgets/controls.h",'r') as r: # READ CURRENT FILE
+    data = r.readlines()
+    for line in data:
+        if "changeKey(const QString" in line:
+            found = True
+            break
+
+if found != True:
+    with open("/data/openpilot/selfdrive/ui/qt/widgets/controls.tmp",'w') as n: # WRITE TO TEMPORARY FILE
+        with open("/data/openpilot/selfdrive/ui/qt/widgets/controls.h",'r') as f: # READ CURRENT FILE
+            data = f.readlines()
+            stage = 1
+            for line in data:
+                if "ParamControl(const QString &param" in line:
+                    stage = 2
+                if stage == 2 and "void showEvent" in line:
+                    stage = 0
+                    n.writelines("  void changeKey(const QString &param) {\n")
+                    n.writelines("    key = param.toStdString();\n")
+                    n.writelines("    if (params.getBool(key) != toggle.on) {\n")
+                    n.writelines("      toggle.togglePosition();\n")
+                    n.writelines("    }\n")
+                    n.writelines("  };\n\n")
+                n.writelines(line)
+        n.flush()
+    shutil.move("/data/openpilot/selfdrive/ui/qt/widgets/controls.tmp", "/data/openpilot/selfdrive/ui/qt/widgets/controls.h")
+
+if found == True:
+    print("Already patched controls.h")
+else:
+    print("Patched controls.h Successfully")
+
