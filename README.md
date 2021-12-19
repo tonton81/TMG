@@ -5,7 +5,7 @@ Tested on OP 0.8.10
 
 Installation:
 1) download to /data/ folder (/data/TMG/)
-2) run ```python install.py```
+2) run ```python /data/TMG/install.py```
 
 The GUI will not have any entries unless you add them in openpilot files, or patches are made. Example, we edit OP to register as example:
 ```ret.lateralTuning.lqr.scale = TMGClass.get("lqr_scale", ret.lateralTuning.lqr.scale)```
