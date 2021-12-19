@@ -18,3 +18,7 @@ Has ability to open Settings (for up to 30 seconds), giving you time to set sett
 On-screen lsusb support, displays the peripherals on your comma device.
 
 Tuning of values can be done by percent (1% ->15%) or by value (0.1, 0.01, 0.001), Selectable via drop down combobox
+
+If openpilot variable supports self-dynamic updating (like steerRatio), you can choose to let it do it dynamically, or set a static value for it.
+```ret.steerRatio = TMGClass.get("steer_ratio", ret.steerRatio, True)``` Just append "True" argument to the call.
+The quoted key name can be anything you want to reference your variable, just to identify what you will be tuning.
